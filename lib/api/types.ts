@@ -27,12 +27,23 @@ export interface Menu {
   id: number | string
   fecha: string
   comida: 'DESAYUNO' | 'ALMUERZO' | 'CENA'
-  // Opcionales para UI
+  itemsMenus?: ItemMenu[]
+  // Campos computados para UI
   dia?: string
   items?: string[]
   descripcion?: string
   platos?: Plato[]
   precio_total?: number
+}
+
+export interface ItemMenu {
+  id: string | number
+  menuId: string | number
+  precio: string | number
+  racionesPlaneadas: number
+  racionesDisponibles: number
+  plato?: Plato
+  menu?: Menu
 }
 
 export interface Compra {
@@ -62,8 +73,10 @@ export interface Proveedor {
 export interface Reserva {
   id: number | string
   estado: string
-  creadoEn?: string
-  // Opcionales/derivados para UI
+  creadoEn?: string | Date
+  persona?: { id: string | number; nombreCompleto: string; documento?: string | null }
+  itemMenu?: ItemMenu & { menu?: Menu }
+  // Campos computados para UI
   usuario?: string
   usuario_id?: number | string
   fecha?: string

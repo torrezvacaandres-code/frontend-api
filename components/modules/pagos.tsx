@@ -37,15 +37,15 @@ export function PagosModule() {
     refetch()
   }
 
-  if (loading) return <Loading message="Cargando pagos..." />
+  if (loading) return <Loading message="Cargando ventas..." />
   if (error) return <ErrorMessage message={error.message} onRetry={refetch} />
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-3xl font-bold">Pagos</h2>
-          <p className="text-muted-foreground">Registro de pagos</p>
+          <h2 className="text-3xl font-bold">Ventas</h2>
+          <p className="text-muted-foreground">Gestión de ventas de comidas</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -72,12 +72,12 @@ export function PagosModule() {
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus size={18} />
-                {editId ? 'Editar Pago' : 'Nuevo Pago'}
+                {editId ? 'Editar Venta' : 'Nueva Venta'}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editId ? 'Editar Pago' : 'Registrar Pago'}</DialogTitle>
+                <DialogTitle>{editId ? 'Editar Venta' : 'Nueva Venta'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <div>

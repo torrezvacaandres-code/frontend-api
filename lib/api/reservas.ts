@@ -35,8 +35,9 @@ export const reservasApi = {
     return apiClient.get<Reserva>(`/reservas/${id}`)
   },
 
-  getByUsuario: async (usuarioId: number | string): Promise<Reserva[]> => {
-    return apiClient.get<Reserva[]>(`/reservas/usuario/${usuarioId}`)
+  getByUsuario: (usuarioId: number | string, params?: { page?: number; limit?: number }): Promise<Paginated<Reserva[]>> => {
+    const query = params ? `?${new URLSearchParams(params as any).toString()}` : ''
+    return apiClient.getWithMeta(`/reservas/usuario/${usuarioId}${query}`)
   },
 
   create: async (data: Omit<Reserva, 'id'>): Promise<Reserva> => {

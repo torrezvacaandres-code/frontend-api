@@ -2,8 +2,12 @@
 
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Calendar, UtensilsCrossed, ShoppingCart, Package, ChefHat } from 'lucide-react'
+import { ArrowLeft, Calendar, UtensilsCrossed, ShoppingCart, CreditCard } from 'lucide-react'
 import { useState } from 'react'
+import { useApi } from '@/hooks/use-api'
+import { menusApi, reservasApi, insumosApi, pagosApi, itemsMenuApi } from '@/lib/api'
+import type { Menu as MenuType, Reserva, Insumo, Paginated, Pago, ItemMenu } from '@/lib/api/types'
+import { Loading } from '@/components/ui/loading'
 
 interface StaffViewProps {
   activeModule: string
@@ -12,30 +16,32 @@ interface StaffViewProps {
 }
 
 export function StaffView({ onModuleChange, onChangeRole }: StaffViewProps) {
-  const [activeSection, setActiveSection] = useState<'dashboard' | 'pos' | 'purchases' | 'preparation'>('dashboard')
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'pos' | 'sales'>('dashboard')
   const [cart, setCart] = useState<any[]>([])
   const [cartTotal, setCartTotal] = useState(0)
 
+  // Fetch real data
+  const { data: reservasData, loading: reservasLoading } = useApi<Paginated<Reserva[]>>(
+    () => reservasApi.getPaginated({ page: 1, limit: 20 }),
+    []
+  )
+  const { data: insumosData, loading: insumosLoading } = useApi<Paginated<Insumo[]>>(
+    () => insumosApi.getPaginated({ page: 1, limit: 10 }),
+    []
+  )
+  const { data: menusData, loading: menusLoading } = useApi<MenuType[]>(
+    () => menusApi.getSemanal(),
+    []
+  )
+
+  const todayReservations = reservasData?.data || []
+  const inventory = insumosData?.data || []
+  const menusCount = menusData?.length || 0
+  const reservasCount = todayReservations.filter(r => r.estado === 'Confirmada' || r.estado === 'CONFIRMADA').length
+  const insumoCritico = inventory.filter(i => Number(i.vidaUtilDias || 0) < 7).length
+
   const dailySchedule = [
-    { time: '11:00 AM', activity: 'Preparación de ensaladas', count: '50 porciones' },
-    { time: '12:00 PM', activity: 'Servicio principal', count: '120 estudiantes' },
-    { time: '1:30 PM', activity: 'Limpieza de áreas', count: 'Completa' },
-    { time: '2:00 PM', activity: 'Preparación para merienda', count: '40 porciones' },
-  ]
-
-  const todayReservations = [
-    { id: 1, student: 'Juan Pérez', menu: 'Arroz con pollo', time: '12:00 PM', status: 'Confirmada' },
-    { id: 2, student: 'María García', menu: 'Pasta a la boloñesa', time: '12:15 PM', status: 'Confirmada' },
-    { id: 3, student: 'Carlos López', menu: 'Pechuga a la mostaza', time: '12:30 PM', status: 'Cancelada' },
-    { id: 4, student: 'Ana Rodríguez', menu: 'Arroz con pollo', time: '12:45 PM', status: 'Confirmada' },
-    { id: 5, student: 'Luis Martínez', menu: 'Pasta a la boloñesa', time: '1:00 PM', status: 'Pendiente' },
-  ]
-
-  const inventory = [
-    { item: 'Pollo fresco', quantity: '25 kg', status: 'Suficiente' },
-    { item: 'Arroz blanco', quantity: '50 kg', status: 'Suficiente' },
-    { item: 'Pasta', quantity: '15 kg', status: 'Bajo' },
-    { item: 'Verduras variadas', quantity: '30 kg', status: 'Suficiente' },
+    { time: '12:00 PM', activity: 'Servicio principal', count: `${todayReservations.length} reservas` },
   ]
 
   return (
@@ -88,31 +94,19 @@ export function StaffView({ onModuleChange, onChangeRole }: StaffViewProps) {
             </div>
           </button>
           <button
-            onClick={() => setActiveSection('purchases')}
+            onClick={() => setActiveSection('sales')}
             className={`py-4 px-4 border-b-2 font-medium transition ${
-              activeSection === 'purchases'
+              activeSection === 'sales'
                 ? 'border-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             <div className="flex items-center gap-2">
-              <Package size={18} />
-              Compras
+              <CreditCard size={18} />
+              Ventas
             </div>
           </button>
-          <button
-            onClick={() => setActiveSection('preparation')}
-            className={`py-4 px-4 border-b-2 font-medium transition ${
-              activeSection === 'preparation'
-                ? 'border-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <ChefHat size={18} />
-              Preparación
-            </div>
-          </button>
+          
         </div>
       </div>
 
@@ -121,24 +115,30 @@ export function StaffView({ onModuleChange, onChangeRole }: StaffViewProps) {
         {/* Dashboard Section */}
         {activeSection === 'dashboard' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground mb-1">Estudiantes hoy</p>
-                <p className="text-3xl font-bold">120</p>
-              </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground mb-1">Reservas confirmadas</p>
-                <p className="text-3xl font-bold">115</p>
-              </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground mb-1">Menús disponibles</p>
-                <p className="text-3xl font-bold">5</p>
-              </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground mb-1">Insumos críticos</p>
-                <p className="text-3xl font-bold text-red-600">1</p>
-              </Card>
-            </div>
+            {reservasLoading || insumosLoading || menusLoading ? (
+              <Loading message="Cargando dashboard..." />
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="p-6">
+                    <p className="text-sm text-muted-foreground mb-1">Estudiantes hoy</p>
+                    <p className="text-3xl font-bold">{todayReservations.length}</p>
+                  </Card>
+                  <Card className="p-6">
+                    <p className="text-sm text-muted-foreground mb-1">Reservas confirmadas</p>
+                    <p className="text-3xl font-bold">{reservasCount}</p>
+                  </Card>
+                  <Card className="p-6">
+                    <p className="text-sm text-muted-foreground mb-1">Menús disponibles</p>
+                    <p className="text-3xl font-bold">{menusCount}</p>
+                  </Card>
+                  <Card className="p-6">
+                    <p className="text-sm text-muted-foreground mb-1">Insumos críticos</p>
+                    <p className="text-3xl font-bold text-red-600">{insumoCritico}</p>
+                  </Card>
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="p-6">
@@ -165,27 +165,31 @@ export function StaffView({ onModuleChange, onChangeRole }: StaffViewProps) {
                   Estado de insumos
                 </h2>
                 <div className="space-y-3">
-                  {inventory.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center pb-3 border-b border-border last:border-b-0">
-                      <div>
-                        <p className="font-medium text-sm">{item.item}</p>
-                        <p className="text-xs text-muted-foreground">{item.quantity}</p>
+                  {inventory.slice(0, 6).map((item) => {
+                    const vidaUtil = Number(item.vidaUtilDias || 999)
+                    const status = vidaUtil < 7 ? 'Crítico' : vidaUtil < 30 ? 'Bajo' : 'Suficiente'
+                    return (
+                      <div key={item.id} className="flex justify-between items-center pb-3 border-b border-border last:border-b-0">
+                        <div>
+                          <p className="font-medium text-sm">{item.nombre}</p>
+                          <p className="text-xs text-muted-foreground">SKU: {item.sku || '—'}</p>
+                        </div>
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${
+                          status === 'Crítico' || status === 'Bajo'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {status}
+                        </span>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${
-                        item.status === 'Bajo'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {item.status}
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </Card>
             </div>
 
             <Card className="p-6">
-              <h2 className="text-xl font-bold mb-4">Reservas de hoy</h2>
+              <h2 className="text-xl font-bold mb-4">Ventas recientes</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -198,20 +202,25 @@ export function StaffView({ onModuleChange, onChangeRole }: StaffViewProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {todayReservations.map((r) => (
-                      <tr key={r.id} className="border-b border-border hover:bg-muted">
-                        <td className="py-3 px-4">{r.student}</td>
-                        <td className="py-3 px-4">{r.menu}</td>
-                        <td className="py-3 px-4">{r.time}</td>
+                    {todayReservations.slice(0, 10).map((r) => {
+                      const usuario = r.persona?.nombreCompleto || r.usuario || '—'
+                      const menuInfo = r.itemMenu?.menu ? `${r.itemMenu.menu.fecha} - ${r.itemMenu.menu.comida}` : '—'
+                      const fecha = r.itemMenu?.menu?.fecha || (r.creadoEn ? new Date(r.creadoEn).toLocaleDateString() : '—')
+                      
+                      return (
+                        <tr key={r.id} className="border-b border-border hover:bg-muted">
+                          <td className="py-3 px-4">{usuario}</td>
+                          <td className="py-3 px-4">{menuInfo}</td>
+                          <td className="py-3 px-4">{fecha}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            r.status === 'Confirmada'
+                            r.estado === 'Confirmada' || r.estado === 'CONFIRMADA'
                               ? 'bg-green-100 text-green-800'
-                              : r.status === 'Pendiente'
+                              : r.estado === 'Pendiente' || r.estado === 'PENDIENTE'
                               ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-red-100 text-red-800'
                           }`}>
-                            {r.status}
+                            {r.estado}
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -220,7 +229,8 @@ export function StaffView({ onModuleChange, onChangeRole }: StaffViewProps) {
                           </Button>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -233,41 +243,65 @@ export function StaffView({ onModuleChange, onChangeRole }: StaffViewProps) {
           <PointOfSaleSection cart={cart} setCart={setCart} cartTotal={cartTotal} setCartTotal={setCartTotal} />
         )}
 
-        {/* Purchases Section */}
-        {activeSection === 'purchases' && (
-          <PurchasesSection />
+        {/* Sales Section */}
+        {activeSection === 'sales' && (
+          <SalesSection />
         )}
 
-        {/* Preparation Section */}
-        {activeSection === 'preparation' && (
-          <PreparationSection />
-        )}
+        
       </div>
     </div>
   )
 }
 
 function PointOfSaleSection({ cart, setCart, cartTotal, setCartTotal }: any) {
-  const availableItems = [
-    { id: 1, name: 'Arroz con pollo', price: 8.50, quantity: 0 },
-    { id: 2, name: 'Pasta a la boloñesa', price: 7.50, quantity: 0 },
-    { id: 3, name: 'Pechuga a la mostaza', price: 9.00, quantity: 0 },
-    { id: 4, name: 'Ensalada fresca', price: 5.00, quantity: 0 },
-    { id: 5, name: 'Jugo natural', price: 2.50, quantity: 0 },
-    { id: 6, name: 'Postre del día', price: 3.00, quantity: 0 },
-  ]
+  const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null)
+  
+  // Obtener menús disponibles (hoy o semana actual)
+  const { data: menusData, loading: menusLoading } = useApi<MenuType[]>(
+    () => menusApi.getSemanal(),
+    []
+  )
 
-  const handleAddItem = (item: any) => {
+  // Obtener items del menú seleccionado
+  const { data: itemsMenuData, loading: itemsLoading } = useApi<Paginated<ItemMenu[]>>(
+    () => selectedMenuId ? itemsMenuApi.getPaginated({ menuId: selectedMenuId, page: 1, limit: 50 }) : Promise.resolve({ 
+      data: [], 
+      meta: { 
+        total: 0, 
+        totalRecords: 0,
+        page: 1, 
+        limit: 50, 
+        totalPages: 0,
+        hasPreviousPage: false,
+        hasNextPage: false
+      } 
+    }),
+    [selectedMenuId]
+  )
+
+  const menus = menusData || []
+  const itemsMenu = itemsMenuData?.data || []
+
+  const handleAddItem = (item: ItemMenu) => {
     const existingItem = cart.find((i: any) => i.id === item.id)
+    const price = Number(item.precio || 0)
+    
     if (existingItem) {
       setCart(cart.map((i: any) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i))
     } else {
-      setCart([...cart, { ...item, qty: 1 }])
+      setCart([...cart, { 
+        id: item.id, 
+        name: item.plato?.nombre || 'Sin nombre',
+        price: price,
+        qty: 1,
+        itemMenuId: item.id
+      }])
     }
-    setCartTotal(cartTotal + item.price)
+    setCartTotal(cartTotal + price)
   }
 
-  const handleRemoveItem = (id: number) => {
+  const handleRemoveItem = (id: number | string) => {
     const item = cart.find((i: any) => i.id === id)
     if (item) {
       setCartTotal(cartTotal - item.price * item.qty)
@@ -278,28 +312,75 @@ function PointOfSaleSection({ cart, setCart, cartTotal, setCartTotal }: any) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2">
+        {/* Selector de Menú */}
+        <Card className="p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4">1. Seleccionar Menú</h2>
+          {menusLoading ? (
+            <Loading message="Cargando menús..." />
+          ) : menus.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">No hay menús disponibles</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {menus.map((menu) => {
+                const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+                const fechaDate = new Date(menu.fecha + 'T00:00:00')
+                const diaNombre = diasSemana[fechaDate.getDay()]
+                const isSelected = selectedMenuId === String(menu.id)
+                
+                return (
+                  <button
+                    key={menu.id}
+                    onClick={() => setSelectedMenuId(String(menu.id))}
+                    className={`border rounded-lg p-3 text-left transition ${
+                      isSelected 
+                        ? 'border-primary bg-primary/10' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <p className="font-bold text-sm">{diaNombre}</p>
+                    <p className="text-xs text-muted-foreground">{menu.comida}</p>
+                    <p className="text-xs text-muted-foreground">{menu.fecha}</p>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </Card>
+
+        {/* Items del Menú seleccionado */}
         <Card className="p-6">
-          <h2 className="text-xl font-bold mb-6">Menú disponible</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {availableItems.map((item) => (
-              <div key={item.id} className="border border-border rounded-lg p-4 hover:bg-muted transition">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-semibold">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">Stock: 50 porciones</p>
+          <h2 className="text-xl font-bold mb-4">2. Seleccionar Platos</h2>
+          {!selectedMenuId ? (
+            <p className="text-center text-muted-foreground py-8">Primero selecciona un menú</p>
+          ) : itemsLoading ? (
+            <Loading message="Cargando platos..." />
+          ) : itemsMenu.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Este menú no tiene platos configurados</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {itemsMenu.map((item) => (
+                <div key={item.id} className="border border-border rounded-lg p-4 hover:bg-muted transition">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <p className="font-semibold">{item.plato?.nombre || 'Sin nombre'}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Disponibles: {item.racionesDisponibles} / {item.racionesPlaneadas}
+                      </p>
+                    </div>
+                    <p className="text-lg font-bold">${Number(item.precio || 0).toFixed(2)}</p>
                   </div>
-                  <p className="text-lg font-bold">${item.price.toFixed(2)}</p>
+                  <Button
+                    onClick={() => handleAddItem(item)}
+                    className="w-full"
+                    size="sm"
+                    disabled={item.racionesDisponibles <= 0}
+                  >
+                    {item.racionesDisponibles > 0 ? 'Agregar al carrito' : 'Sin stock'}
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => handleAddItem(item)}
-                  className="w-full"
-                  size="sm"
-                >
-                  Agregar al carrito
-                </Button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -340,7 +421,15 @@ function PointOfSaleSection({ cart, setCart, cartTotal, setCartTotal }: any) {
                 <Button className="w-full" size="lg">
                   Completar venta
                 </Button>
-                <Button variant="outline" className="w-full" size="sm">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  size="sm"
+                  onClick={() => {
+                    setCart([])
+                    setCartTotal(0)
+                  }}
+                >
                   Limpiar carrito
                 </Button>
               </div>
@@ -352,197 +441,65 @@ function PointOfSaleSection({ cart, setCart, cartTotal, setCartTotal }: any) {
   )
 }
 
-function PurchasesSection() {
-  const [newPurchase, setNewPurchase] = useState({ supplier: '', items: '', quantity: '', date: '' })
-  
-  const purchases = [
-    { id: 1, supplier: 'Proveedor ABC', items: 'Pollo fresco', quantity: '50 kg', date: '2024-01-15', status: 'Entregado' },
-    { id: 2, supplier: 'Proveedor XYZ', items: 'Arroz y granos', quantity: '100 kg', date: '2024-01-14', status: 'En tránsito' },
-    { id: 3, supplier: 'Verduras del campo', items: 'Verduras variadas', quantity: '75 kg', date: '2024-01-13', status: 'Pendiente' },
-  ]
+function SalesSection() {
+  const { data: pagosData, loading: pagosLoading } = useApi<Paginated<Pago[]>>(
+    () => pagosApi.getPaginated({ page: 1, limit: 20 }),
+    []
+  )
+
+  const sales = pagosData?.data || []
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="lg:col-span-2">
         <Card className="p-6">
-          <h2 className="text-xl font-bold mb-6">Registro de compras</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-semibold">Proveedor</th>
-                  <th className="text-left py-3 px-4 font-semibold">Artículos</th>
-                  <th className="text-left py-3 px-4 font-semibold">Cantidad</th>
-                  <th className="text-left py-3 px-4 font-semibold">Fecha</th>
-                  <th className="text-left py-3 px-4 font-semibold">Estado</th>
-                  <th className="text-left py-3 px-4 font-semibold">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map((p) => (
-                  <tr key={p.id} className="border-b border-border hover:bg-muted">
-                    <td className="py-3 px-4">{p.supplier}</td>
-                    <td className="py-3 px-4">{p.items}</td>
-                    <td className="py-3 px-4">{p.quantity}</td>
-                    <td className="py-3 px-4">{p.date}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        p.status === 'Entregado'
-                          ? 'bg-green-100 text-green-800'
-                          : p.status === 'En tránsito'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Button size="sm" variant="outline">
-                        Detalles
-                      </Button>
-                    </td>
+          <h2 className="text-xl font-bold mb-6">Registro de ventas</h2>
+          {pagosLoading ? (
+            <Loading message="Cargando ventas..." />
+          ) : sales.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No hay ventas registradas</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 font-semibold">ID</th>
+                    <th className="text-left py-3 px-4 font-semibold">Cliente</th>
+                    <th className="text-left py-3 px-4 font-semibold">Monto</th>
+                    <th className="text-left py-3 px-4 font-semibold">Estado</th>
+                    <th className="text-left py-3 px-4 font-semibold">Fecha</th>
+                    <th className="text-left py-3 px-4 font-semibold">Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sales.map((sale) => (
+                    <tr key={sale.id} className="border-b border-border hover:bg-muted">
+                      <td className="py-3 px-4">{sale.id}</td>
+                      <td className="py-3 px-4">Cliente #{sale.personaId || '—'}</td>
+                      <td className="py-3 px-4">${Number(sale.monto || 0).toFixed(2)}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          sale.estado === 'APROBADO'
+                            ? 'bg-green-100 text-green-800'
+                            : sale.estado === 'PENDIENTE'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {sale.estado || 'PENDIENTE'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">{sale.creadoEn ? new Date(sale.creadoEn).toLocaleDateString() : '—'}</td>
+                      <td className="py-3 px-4">
+                        <Button size="sm" variant="outline">Ver detalles</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
-
-      <div>
-        <Card className="p-6 sticky top-6">
-          <h2 className="text-lg font-bold mb-4">Nueva compra</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">Proveedor</label>
-              <input
-                type="text"
-                placeholder="Seleccionar proveedor"
-                className="w-full border border-border rounded px-3 py-2 mt-1"
-                value={newPurchase.supplier}
-                onChange={(e) => setNewPurchase({ ...newPurchase, supplier: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Artículos</label>
-              <input
-                type="text"
-                placeholder="Descripción de artículos"
-                className="w-full border border-border rounded px-3 py-2 mt-1"
-                value={newPurchase.items}
-                onChange={(e) => setNewPurchase({ ...newPurchase, items: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Cantidad</label>
-              <input
-                type="text"
-                placeholder="Ej: 50 kg"
-                className="w-full border border-border rounded px-3 py-2 mt-1"
-                value={newPurchase.quantity}
-                onChange={(e) => setNewPurchase({ ...newPurchase, quantity: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Fecha</label>
-              <input
-                type="date"
-                className="w-full border border-border rounded px-3 py-2 mt-1"
-                value={newPurchase.date}
-                onChange={(e) => setNewPurchase({ ...newPurchase, date: e.target.value })}
-              />
-            </div>
-            <Button className="w-full mt-4">
-              Registrar compra
-            </Button>
-          </div>
-        </Card>
-      </div>
-    </div>
-  )
-}
-
-function PreparationSection() {
-  const ordersToPrep = [
-    { id: 1, menu: 'Arroz con pollo', quantity: 45, time: '11:30 AM', priority: 'Alta', status: 'En preparación' },
-    { id: 2, menu: 'Pasta a la boloñesa', quantity: 30, time: '12:00 PM', priority: 'Media', status: 'Pendiente' },
-    { id: 3, menu: 'Pechuga a la mostaza', quantity: 25, time: '12:15 PM', priority: 'Media', status: 'Pendiente' },
-    { id: 4, menu: 'Ensalada fresca', quantity: 50, time: '11:45 AM', priority: 'Baja', status: 'Completado' },
-  ]
-
-  return (
-    <div className="space-y-6">
-      <Card className="p-6 bg-amber-50 border-amber-200">
-        <h2 className="text-xl font-bold mb-2">Preparación en tiempo real</h2>
-        <p className="text-sm text-muted-foreground">Gestiona el orden y estado de preparación de platos</p>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { title: 'Pendientes', count: 2, color: 'bg-red-50 border-red-200' },
-          { title: 'En preparación', count: 1, color: 'bg-yellow-50 border-yellow-200' },
-          { title: 'Listos', count: 1, color: 'bg-green-50 border-green-200' },
-          { title: 'Completados', count: 1, color: 'bg-blue-50 border-blue-200' },
-        ].map((stat, idx) => (
-          <Card key={idx} className={`p-6 border ${stat.color}`}>
-            <p className="text-sm text-muted-foreground">{stat.title}</p>
-            <p className="text-3xl font-bold mt-2">{stat.count}</p>
-          </Card>
-        ))}
-      </div>
-
-      <Card className="p-6">
-        <div className="space-y-4">
-          {ordersToPrep.map((order) => (
-            <div key={order.id} className={`border rounded-lg p-4 ${
-              order.status === 'Completado' ? 'bg-green-50 border-green-200' : 'border-border'
-            }`}>
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <p className="font-bold text-lg">{order.menu}</p>
-                  <p className="text-sm text-muted-foreground">Cantidad: {order.quantity} porciones • Hora: {order.time}</p>
-                </div>
-                <div className="flex gap-2">
-                  <span className={`px-3 py-1 rounded text-xs font-medium ${
-                    order.priority === 'Alta'
-                      ? 'bg-red-100 text-red-800'
-                      : order.priority === 'Media'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {order.priority}
-                  </span>
-                  <span className={`px-3 py-1 rounded text-xs font-medium ${
-                    order.status === 'Pendiente'
-                      ? 'bg-gray-100 text-gray-800'
-                      : order.status === 'En preparación'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {order.status}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {order.status === 'Pendiente' && (
-                  <Button size="sm">Comenzar preparación</Button>
-                )}
-                {order.status === 'En preparación' && (
-                  <Button size="sm">Marcar como listo</Button>
-                )}
-                {order.status === 'Completado' && (
-                  <Button size="sm" disabled variant="outline">
-                    Completado ✓
-                  </Button>
-                )}
-                <Button size="sm" variant="outline">
-                  Detalles
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   )
 }

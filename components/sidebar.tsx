@@ -12,10 +12,10 @@ const navItems: NavItem[] = [
   { id: 'platos', label: 'Platos', icon: UtensilsCrossed },
   { id: 'insumos', label: 'Insumos', icon: Package },
   { id: 'menus', label: 'Menús', icon: Menu },
-  { id: 'compras', label: 'Compras', icon: ShoppingCart },
+  { id: 'compras', label: 'Compra de Insumos', icon: ShoppingCart },
   { id: 'proveedores', label: 'Proveedores', icon: Users },
   { id: 'reservas', label: 'Reservas', icon: Calendar },
-  { id: 'pagos', label: 'Pagos', icon: CreditCard },
+  { id: 'pagos', label: 'Ventas', icon: CreditCard },
   { id: 'becas', label: 'Becas', icon: BookOpen },
 ]
 

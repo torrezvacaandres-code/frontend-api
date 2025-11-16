@@ -43,8 +43,8 @@ export function ComprasModule() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-3xl font-bold">Compras</h2>
-          <p className="text-muted-foreground">Registro de compras</p>
+          <h2 className="text-3xl font-bold">Compra de Insumos</h2>
+          <p className="text-muted-foreground">Gestión de compras de insumos a proveedores</p>
         </div>
         <div className="flex items-center gap-3">
           <select
@@ -60,12 +60,12 @@ export function ComprasModule() {
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus size={18} />
-                {editId ? 'Editar Compra' : 'Nueva Compra'}
+                {editId ? 'Editar Compra' : 'Nueva compra de insumos'}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editId ? 'Editar Compra' : 'Crear Compra'}</DialogTitle>
+                <DialogTitle>{editId ? 'Editar Compra' : 'Nueva Compra de Insumos'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <div>
