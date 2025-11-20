@@ -29,6 +29,15 @@ class ApiClient {
   }
 
   /**
+   * Normaliza la URL para evitar dobles barras
+   */
+  private normalizeUrl(endpoint: string): string {
+    const base = this.baseURL.endsWith('/') ? this.baseURL.slice(0, -1) : this.baseURL
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    return `${base}${path}`
+  }
+
+  /**
    * Realiza una petición HTTP al backend NestJS
    * 
    * NestJS devuelve:
@@ -40,12 +49,14 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
+    const url = this.normalizeUrl(endpoint)
     
     const config: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        // Header necesario para ngrok (si es necesario)
+        'ngrok-skip-browser-warning': 'true',
         // Si implementas autenticación JWT, agrega el token aquí:
         // 'Authorization': `Bearer ${getToken()}`,
         ...options.headers,
@@ -101,7 +112,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
+    const url = this.normalizeUrl(endpoint)
     const config: RequestInit = {
       ...options,
       headers: {
